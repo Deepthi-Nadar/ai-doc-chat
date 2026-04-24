@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+    margin: 0;
+    background: linear-gradient(135deg, #0f172a, #020617);
+    color: white;
+    font-family: Arial;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.message {
+    max-width: 60%;
+    padding: 12px;
+    margin: 10px;
+    border-radius: 12px;
+    line-height: 1.5;
+}
+
+.user {
+    background: #2563eb;
+    margin-left: auto;
+}
+
+.bot {
+    background: #1e293b;
+}
+
+.input-area {
+    display: flex;
+    padding: 10px;
+    background: #020617;
+    border-top: 1px solid #1e293b;
+}
+
+input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    outline: none;
+}
+
+button {
+    margin-left: 10px;
+    padding: 10px 15px;
+    background: #2563eb;
+    border: none;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="chat" id="chat"></div>
+
+    <div style="padding:10px;">
+        <input type="file" id="file">
+        <button onclick="upload()">Upload</button>
+    </div>
+
+    <div class="input-area">
+        <input id="q" placeholder="Ask something about your PDF...">
+        <button onclick="ask()">Send</button>
+    </div>
+
+</div>
+
+<script>
+async function upload() {
+    const file = document.getElementById("file").files[0];
+
+    if (!file) {
+        alert("Select a file first");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("http://127.0.0.1:8000/upload", {
+        method: "POST",
+        body: formData
+    });
+
+    const data = await res.json();
+    alert(data.message);
+}
+
+function addMessage(text, type) {
+    const msg = document.createElement("div");
+    msg.className = "message " + type;
+    msg.textContent = text;
+    document.getElementById("chat").appendChild(msg);
+    document.getElementById("chat").scrollTop = 999999;
+    return msg;
+}
+
+async function ask() {
+    const q = document.getElementById("q").value;
+
+    if (!q) return;
+
+    addMessage(q, "user");
+
+    const botMsg = addMessage("", "bot");
+
+    const res = await fetch(`http://127.0.0.1:8000/ask?q=${q}`, {
+        method: "POST"
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+
+    let result = "";
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        result += decoder.decode(value);
+        botMsg.textContent = result;
+    }
+
+    document.getElementById("q").value = "";
+}
+</script>
+
+</body>
+</html>
