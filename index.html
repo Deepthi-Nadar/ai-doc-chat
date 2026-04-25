@@ -115,22 +115,13 @@ async function upload() {
         const formData = new FormData();
         formData.append("file", file);
 
-        await fetch("http://127.0.0.1:8000/upload", {
+        await fetch("https://ai-doc-chat-4chx.onrender.com/upload", {
             method: "POST",
             body: formData
         });
     }
 
     loadingMsg.textContent = "PDFs ready! Ask anything now.";
-}
-
-function addMessage(text, type) {
-    const msg = document.createElement("div");
-    msg.className = "message " + type;
-    msg.textContent = text;
-    document.getElementById("chat").appendChild(msg);
-    document.getElementById("chat").scrollTop = 999999;
-    return msg;
 }
 
 
@@ -142,27 +133,21 @@ async function ask() {
 
     addMessage(q, "user");
 
-    const botMsg = addMessage("", "bot");
+    const botMsg = addMessage("Thinking...", "bot");
 
-    const res = await fetch(`http://127.0.0.1:8000/ask?q=${q}`, {
+    const res = await fetch(`https://ai-doc-chat-4chx.onrender.com/ask?q=${q}`, {
         method: "POST"
     });
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
+    const data = await res.json();
 
-    let result = "";
+    botMsg.textContent = data.answer;
 
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        result += decoder.decode(value);
-        botMsg.textContent = result;
-    }
+    speak(data.answer); // ✅ voice works clean
 
     document.getElementById("q").value = "";
 }
+
 
 function addMessage(text, type) {
     const welcome = document.getElementById("welcome");
@@ -187,7 +172,7 @@ function speak(text) {
     window.speechSynthesis.speak(speech);
 }
 
-speak(result);
+
 
 function startListening() {
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
