@@ -28,9 +28,15 @@ def create_index(chunks):
     index.add(np.array(embeddings))
     return index
 
-def search(query, index, top_k=3):
-    query_vec = model.encode([query])
-    distances, indices = index.search(np.array(query_vec), top_k)
+def search(index, query, chunks, k=3):
+    query_vector = model.encode([query])
 
-    return [documents[i] for i in indices[0]]
+    distances, indices = index.search(query_vector, k)
+
+    results = []
+    for i in indices[0]:
+        results.append(chunks[i])
+
+    return results
+
 
