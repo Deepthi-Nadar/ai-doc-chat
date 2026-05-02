@@ -5,4 +5,4 @@
 - [ ] 2. Test speaking mode locally
 - [ ] 3. Commit and push
 
-Progress: Starting step 1.
+Progress: Steps 1-2 complete (edits + local test ready). Step 3: commit/push.

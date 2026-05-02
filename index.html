@@ -177,10 +177,16 @@ function addMessage(text, type) {
 }
 
 function speak(text) {
+    // Cancel previous speech
+    window.speechSynthesis.cancel();
+    
+    if (!text) return;
+    
     const speech = new SpeechSynthesisUtterance(text);
     speech.lang = "en-US";
-    speech.rate = 1;
-    speech.pitch = 1;
+    speech.rate = 0.95;
+    speech.pitch = 1.05;
+    speech.volume = 1;
 
     window.speechSynthesis.speak(speech);
 }
@@ -217,28 +223,36 @@ function startContinuousListening() {
     recognition.onresult = async function(event) {
         const transcript = event.results[0][0].transcript;
         document.getElementById("q").value = transcript;
-        addMessage(transcript, "user");
+        addMessage(`You: ${transcript}`, "user");
         
         isProcessing = true;
-        await ask(); // Will speak response
-        isProcessing = false;
+        await ask();
         
-        // Restart listening after response
-        if (speakingMode) {
-            setTimeout(startContinuousListening, 500);
+        // Wait for speech to finish before listening
+        const utterance = window.speechSynthesis.getVoices()[0] ? new SpeechSynthesisUtterance('') : null;
+        if (utterance) {
+            utterance.onend = () => {
+                isProcessing = false;
+                if (speakingMode) startContinuousListening();
+            };
+            window.speechSynthesis.speak(utterance);
+        } else {
+            isProcessing = false;
+            if (speakingMode) setTimeout(startContinuousListening, 500);
         }
     };
 
     recognition.onerror = function(event) {
         console.log('Speech error:', event.error);
-        if (speakingMode && !isProcessing) {
-            setTimeout(startContinuousListening, 1000);
+        addMessage(`Speech error: ${event.error}. Check mic permission or click toggle.`, 'bot');
+        if (speakingMode && !isProcessing && event.error !== 'aborted') {
+            setTimeout(startContinuousListening, 1500);
         }
     };
 
     recognition.onend = function() {
         if (speakingMode && !isProcessing) {
-            setTimeout(startContinuousListening, 500);
+            setTimeout(startContinuousListening, 800);
         }
     };
 
