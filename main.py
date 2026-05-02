@@ -12,7 +12,7 @@ if not GEMINI_API_KEY:
 
 genai.configure(api_key=GEMINI_API_KEY)
 
-app = FastAPI()
+app = FastAPI(docs_url="/docs", redoc_url=None)
 index=None
 indexes = {}
 documents_store = {}
