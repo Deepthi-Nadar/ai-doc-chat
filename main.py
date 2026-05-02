@@ -1,17 +1,18 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Query
 from utils import extract_text, split_text, create_index, search
-from openai import OpenAI
-
+import google.generativeai as genai
 import os
 from dotenv import load_dotenv
-from openai import OpenAI
 
 load_dotenv()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-app = FastAPI()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    raise ValueError("Set GEMINI_API_KEY in .env")
 
-openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+genai.configure(api_key=GEMINI_API_KEY)
+
+app = FastAPI()
 index=None
 indexes = {}
 documents_store = {}
@@ -31,12 +32,6 @@ async def upload_pdf(file: UploadFile = File(...)):
 
     return {"message": f"{filename} uploaded successfully"}
 
-from fastapi import Query
-
-
-from fastapi import FastAPI, Query
-
-from fastapi.responses import StreamingResponse
 
 
 @app.post("/ask")
@@ -71,13 +66,11 @@ async def ask(q: str = Query(...)):
         {q}
         """
 
-        response = client.responses.create(
-            model="gpt-4.1-mini",
-            input=prompt
-        )
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content(prompt)
 
         return {
-            response.output[0].content[0].text
+            "answer": response.text
         }
 
     except Exception as e:
