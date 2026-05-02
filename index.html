@@ -66,6 +66,17 @@ button {
     border-radius: 8px;
     cursor: pointer;
 }
+
+#voiceToggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    padding: 15px 20px;
+    font-size: 16px;
+    border-radius: 50px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
 </style>
 </head>
 
@@ -86,7 +97,7 @@ button {
     </p>
 </div>
     <div class="chat" id="chat"></div>
-<button onclick="startListening()">🎤</button>
+<button id="voiceToggle" onclick="toggleVoiceMode()">🎤 Voice Mode: OFF</button>
     <div style="padding:10px;">
         <input type="file" id="file" multiple>
         <button onclick="upload()">Upload</button>
@@ -135,15 +146,17 @@ async function ask() {
 
     const botMsg = addMessage("Thinking...", "bot");
 
-    const res = await fetch(`https://ai-doc-chat-4chx.onrender.com/ask?q=${q}`, {
+    const localUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://127.0.0.1:8000' : 'https://ai-doc-chat-4chx.onrender.com';
+    
+    const res = await fetch(`${localUrl}/ask?q=${q}`, {
         method: "POST"
     });
 
     const data = await res.json();
 
-    botMsg.textContent = data.answer;
+    botMsg.textContent = data.answer || data.error || 'Error';
 
-    speak(data.answer); // ✅ voice works clean
+    speak(data.answer);
 
     document.getElementById("q").value = "";
 }
@@ -174,15 +187,70 @@ function speak(text) {
 
 
 
-function startListening() {
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = "en-US";
+let speakingMode = false;
+let recognition = null;
+let isProcessing = false;
 
-    recognition.onresult = function(event) {
-        document.getElementById("q").value = event.results[0][0].transcript;
+function toggleVoiceMode() {
+    const btn = document.getElementById('voiceToggle');
+    speakingMode = !speakingMode;
+    
+    if (speakingMode) {
+        btn.textContent = '🔴 Stop Voice Mode';
+        btn.style.background = '#ef4444';
+        startContinuousListening();
+    } else {
+        btn.textContent = '🎤 Voice Mode: OFF';
+        btn.style.background = '#2563eb';
+        stopListening();
+    }
+}
+
+function startContinuousListening() {
+    if (isProcessing) return;
+    
+    recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = "en-US";
+    recognition.continuous = true;
+    recognition.interimResults = false;
+
+    recognition.onresult = async function(event) {
+        const transcript = event.results[0][0].transcript;
+        document.getElementById("q").value = transcript;
+        addMessage(transcript, "user");
+        
+        isProcessing = true;
+        await ask(); // Will speak response
+        isProcessing = false;
+        
+        // Restart listening after response
+        if (speakingMode) {
+            setTimeout(startContinuousListening, 500);
+        }
+    };
+
+    recognition.onerror = function(event) {
+        console.log('Speech error:', event.error);
+        if (speakingMode && !isProcessing) {
+            setTimeout(startContinuousListening, 1000);
+        }
+    };
+
+    recognition.onend = function() {
+        if (speakingMode && !isProcessing) {
+            setTimeout(startContinuousListening, 500);
+        }
     };
 
     recognition.start();
+}
+
+function stopListening() {
+    if (recognition) {
+        recognition.stop();
+        recognition = null;
+    }
+    isProcessing = false;
 }
 
 
